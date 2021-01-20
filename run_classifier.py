@@ -76,6 +76,17 @@ flags.DEFINE_bool(
     "do_predict", False,
     "Whether to run the model in inference mode on the test set.")
 
+flags.DEFINE_bool(
+    "do_predict_raw", False,
+    "Whether to run the model in inference mode on input string.")
+
+flags.DEFINE_string("text", None,
+                    "The text data to do single prediction.")
+
+flags.DEFINE_string(
+    "saved_model_dir", None,
+    "The directory where the saved model to be loaded.")
+
 flags.DEFINE_integer("train_batch_size", 32, "Total batch size for training.")
 
 flags.DEFINE_integer("eval_batch_size", 8, "Total batch size for eval.")
@@ -754,6 +765,33 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     features.append(feature)
   return features
 
+def create_serving_input_receiver_fn(max_seq_length):
+  """ Builds a serving_inputer_receiver_fn
+  Arguments
+  ---------
+  max_seq_length: int
+      Specifies the sequence length
+  Returns
+  -------
+  serving_input_receiver_fn()
+  """
+
+  def serving_input_receiver_fn():
+      """ Creates an serving_input_receiver_fn for BERT"""
+      input_ids = tf.placeholder(tf.int32, [None, max_seq_length], name="input_ids")
+      input_mask = tf.placeholder(tf.int32, [None, max_seq_length], name="input_mask")
+      segment_ids = tf.placeholder(tf.int32, [None, max_seq_length], name="segment_ids")
+      label_ids = tf.placeholder(tf.int32, [None], name="label_ids")
+      return tf.estimator.export.build_raw_serving_input_receiver_fn(
+          {
+              "input_ids": input_ids,
+              "input_mask": input_mask,
+              "segment_ids": segment_ids,
+              "label_ids": label_ids,
+          }
+      )()
+
+  return serving_input_receiver_fn
 
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
@@ -768,9 +806,9 @@ def main(_):
   tokenization.validate_case_matches_checkpoint(FLAGS.do_lower_case,
                                                 FLAGS.init_checkpoint)
 
-  if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_predict:
+  if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_predict and not FLAGS.do_predict_raw:
     raise ValueError(
-        "At least one of `do_train`, `do_eval` or `do_predict' must be True.")
+        "At least one of `do_train`, `do_eval` or `do_predict' or `do_predict_raw` must be True.")
 
   bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
 
@@ -977,6 +1015,32 @@ def main(_):
         num_written_lines += 1
     assert num_written_lines == num_actual_predict_examples
 
+  if FLAGS.do_predict_raw:
+    print("***** Running single prediction*****")
+    print("text data: ", FLAGS.text)
+    # estimator.export_saved_model(FLAGS.output_dir, create_serving_input_receiver_fn(FLAGS.max_seq_length))
+    from tensorflow.contrib import predictor
+    import time
+    start = time.process_time()
+    predict_fn = predictor.from_saved_model(FLAGS.saved_model_dir)
+    print("it took", time.process_time() - start, "to load model")
+    guid = "predict_1"
+    label = tokenization.convert_to_unicode("1")
+    text_a = tokenization.convert_to_unicode(FLAGS.text)
+    text_b = None
+    example = InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label)
+    feature = convert_single_example(0, example, label_list, FLAGS.max_seq_length, tokenizer)
+
+    def reshape_feature(values):
+      return [values]
+
+    features = collections.OrderedDict()
+    features["input_ids"] = reshape_feature(feature.input_ids)
+    features["input_mask"] = reshape_feature(feature.input_mask)
+    features["segment_ids"] = reshape_feature(feature.segment_ids)
+    results = predict_fn(features)
+    print(results)
+    print("it took", time.process_time() - start, "to do prediction")
 
 if __name__ == "__main__":
   flags.mark_flag_as_required("data_dir")
