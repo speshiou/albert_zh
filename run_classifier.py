@@ -80,8 +80,8 @@ flags.DEFINE_bool(
     "do_predict_raw", False,
     "Whether to run the model in inference mode on input string.")
 
-flags.DEFINE_string("text", None,
-                    "The text data to do single prediction.")
+flags.DEFINE_multi_string("text", None,
+                    "The text data to do predictions.")
 
 flags.DEFINE_string(
     "saved_model_dir", None,
@@ -810,16 +810,6 @@ def main(_):
     raise ValueError(
         "At least one of `do_train`, `do_eval` or `do_predict' or `do_predict_raw` must be True.")
 
-  bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
-
-  if FLAGS.max_seq_length > bert_config.max_position_embeddings:
-    raise ValueError(
-        "Cannot use sequence length %d because the BERT model "
-        "was only trained up to sequence length %d" %
-        (FLAGS.max_seq_length, bert_config.max_position_embeddings))
-
-  tf.gfile.MakeDirs(FLAGS.output_dir)
-
   task_name = FLAGS.task_name.lower()
 
   if task_name not in processors:
@@ -831,6 +821,50 @@ def main(_):
 
   tokenizer = tokenization.FullTokenizer(
       vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+
+  if FLAGS.do_predict_raw:
+    print("***** Running single prediction*****")
+    texts = FLAGS.text
+    # workaround: Getting duplicate text data when using FLAGS before runing the tf app
+    texts = texts[0:int(len(texts) / 2)]
+    print("text data: ", texts)
+    # estimator.export_saved_model(FLAGS.output_dir, create_serving_input_receiver_fn(FLAGS.max_seq_length))
+    from tensorflow.contrib import predictor
+    import time
+    start = time.process_time()
+    predict_fn = predictor.from_saved_model(FLAGS.saved_model_dir)
+    print("it took", time.process_time() - start, "to load model")
+    start = time.process_time()
+    input_ids_data, input_mask_data, segment_ids_data = [], [], []
+    for i, t in enumerate(texts):
+      guid = "predict_{}".format(i + 1)
+      label = tokenization.convert_to_unicode("1")
+      text_a = tokenization.convert_to_unicode(t)
+      text_b = None
+      example = InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label)
+      feature = convert_single_example(0, example, label_list, FLAGS.max_seq_length, tokenizer)
+      input_ids_data.append(feature.input_ids)
+      input_mask_data.append(feature.input_mask)
+      segment_ids_data.append(feature.segment_ids)
+
+    features = collections.OrderedDict()
+    features["input_ids"] = input_ids_data
+    features["input_mask"] = input_mask_data
+    features["segment_ids"] = segment_ids_data
+    results = predict_fn(features)
+    print(results)
+    print("it took", time.process_time() - start, "to do prediction")
+    return
+
+  bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
+
+  if FLAGS.max_seq_length > bert_config.max_position_embeddings:
+    raise ValueError(
+        "Cannot use sequence length %d because the BERT model "
+        "was only trained up to sequence length %d" %
+        (FLAGS.max_seq_length, bert_config.max_position_embeddings))
+
+  tf.gfile.MakeDirs(FLAGS.output_dir)
 
   tpu_cluster_resolver = None
   if FLAGS.use_tpu and FLAGS.tpu_name:
@@ -1015,37 +1049,13 @@ def main(_):
         num_written_lines += 1
     assert num_written_lines == num_actual_predict_examples
 
-  if FLAGS.do_predict_raw:
-    print("***** Running single prediction*****")
-    print("text data: ", FLAGS.text)
-    # estimator.export_saved_model(FLAGS.output_dir, create_serving_input_receiver_fn(FLAGS.max_seq_length))
-    from tensorflow.contrib import predictor
-    import time
-    start = time.process_time()
-    predict_fn = predictor.from_saved_model(FLAGS.saved_model_dir)
-    print("it took", time.process_time() - start, "to load model")
-    guid = "predict_1"
-    label = tokenization.convert_to_unicode("1")
-    text_a = tokenization.convert_to_unicode(FLAGS.text)
-    text_b = None
-    example = InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label)
-    feature = convert_single_example(0, example, label_list, FLAGS.max_seq_length, tokenizer)
-
-    def reshape_feature(values):
-      return [values]
-
-    features = collections.OrderedDict()
-    features["input_ids"] = reshape_feature(feature.input_ids)
-    features["input_mask"] = reshape_feature(feature.input_mask)
-    features["segment_ids"] = reshape_feature(feature.segment_ids)
-    results = predict_fn(features)
-    print(results)
-    print("it took", time.process_time() - start, "to do prediction")
-
 if __name__ == "__main__":
-  flags.mark_flag_as_required("data_dir")
   flags.mark_flag_as_required("task_name")
   flags.mark_flag_as_required("vocab_file")
-  flags.mark_flag_as_required("bert_config_file")
-  flags.mark_flag_as_required("output_dir")
+  if FLAGS.do_predict_raw:
+    flags.mark_flag_as_required("saved_model_dir")
+  else:
+    flags.mark_flag_as_required("data_dir")
+    flags.mark_flag_as_required("bert_config_file")
+    flags.mark_flag_as_required("output_dir")
   tf.app.run()
