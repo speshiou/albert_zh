@@ -6,12 +6,12 @@ import tokenization
 
 tf.get_logger().setLevel('ERROR')
 
-VOCAB_FILE = "albert_config/vocab.txt"
-
 flags = tf.flags
 
 FLAGS = flags.FLAGS
 
+flags.DEFINE_string("vocab_file", None,
+                    "The vocabulary file that the BERT model was trained on.")
 flags.DEFINE_string("tflite_model", None,
     "The directory where the saved model to be loaded.")
 flags.DEFINE_multi_string("text", None,
@@ -176,7 +176,7 @@ def main(_):
     
 
     tokenizer = tokenization.FullTokenizer(
-      vocab_file=VOCAB_FILE, do_lower_case=True)
+      vocab_file=FLAGS.vocab_file, do_lower_case=True)
     interpreter = tf.lite.Interpreter(model_path=FLAGS.tflite_model)
     results = []
 
@@ -205,4 +205,5 @@ def main(_):
 if __name__ == "__main__":
   flags.mark_flag_as_required("tflite_model")
   flags.mark_flag_as_required("text")
+  flags.mark_flag_as_required("vocab_file")
   tf.app.run()
