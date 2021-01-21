@@ -15,5 +15,7 @@
 
 node_modules
 #!include:.gitignore
+# override .gitignore
 !*.tflite
+resources
 
