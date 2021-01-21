@@ -10,13 +10,6 @@ flags = tf.flags
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("vocab_file", None,
-                    "The vocabulary file that the BERT model was trained on.")
-flags.DEFINE_string("tflite_model", None,
-    "The directory where the saved model to be loaded.")
-flags.DEFINE_multi_string("text", None,
-                    "The text data to do predictions.")
-
 class InputExample(object):
   """A single training/test example for simple sequence classification."""
 
@@ -171,16 +164,13 @@ def np_json_convertor(obj):
           return obj.item()
   raise TypeError('Unknown type:', type(obj))
 
-
-def main(_):
-    
-
+def do_inference(model_path, vocab_file, data):
     tokenizer = tokenization.FullTokenizer(
-      vocab_file=FLAGS.vocab_file, do_lower_case=True)
-    interpreter = tf.lite.Interpreter(model_path=FLAGS.tflite_model)
+      vocab_file=vocab_file, do_lower_case=True)
+    interpreter = tf.lite.Interpreter(model_path=model_path)
     results = []
 
-    for input in FLAGS.text:
+    for input in data:
         guid = "predict_1"
         text_a = tokenization.convert_to_unicode(input)
         example = InputExample(guid=guid, text_a=text_a, text_b=None, label="1")
@@ -199,11 +189,22 @@ def main(_):
 
         output_data = interpreter.get_tensor(output_details[0]['index'])
         results.append(output_data[0])
+    return results
+
+def main(_):
+    results = do_inference(FLAGS.tflite_model, FLAGS.vocab_file, FLAGS.text)
+    
     results = { "status": "OK", "data": results, "taken": time.time() - start_time }
     print(json.dumps(results, default=np_json_convertor, indent=4))
 
 if __name__ == "__main__":
-  flags.mark_flag_as_required("tflite_model")
-  flags.mark_flag_as_required("text")
-  flags.mark_flag_as_required("vocab_file")
-  tf.app.run()
+    flags.DEFINE_string("vocab_file", None,
+                    "The vocabulary file that the BERT model was trained on.")
+    flags.DEFINE_string("tflite_model", None,
+        "The directory where the saved model to be loaded.")
+    flags.DEFINE_multi_string("text", None,
+                        "The text data to do predictions.")
+    flags.mark_flag_as_required("tflite_model")
+    flags.mark_flag_as_required("text")
+    flags.mark_flag_as_required("vocab_file")
+    tf.app.run()

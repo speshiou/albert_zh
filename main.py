@@ -1,18 +1,16 @@
-import tensorflow as tf
+import json
+from run_inference import do_inference, np_json_convertor
 
 def spam_classifier(request):
-    """Responds to any HTTP request.
-    Args:
-        request (flask.Request): HTTP request object.
-    Returns:
-        The response text or any set of values that can be turned into a
-        Response object using
-        `make_response <http://flask.pocoo.org/docs/1.0/api/#flask.Flask.make_response>`.
-    """
+    status = "FAILURE"
+    results = None
     request_json = request.get_json()
     if request.args and 'message' in request.args:
-        return request.args.get('message')
-    elif request_json and 'message' in request_json:
-        return request_json['message']
-    else:
-        return tf.__version__
+        pass
+    elif request_json and 'data' in request_json:
+        status = "OK"
+        results = do_inference("models/spam_20210119_128.tflite", "albert_config/vocab.txt", request_json['data'])
+    return json.dumps({
+        "status": status,
+        "data": results
+    }, default=np_json_convertor, indent=4)
