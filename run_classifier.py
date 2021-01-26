@@ -337,42 +337,111 @@ def main(_):
         seq_length=FLAGS.max_seq_length,
         is_training=False,
         drop_remainder=eval_drop_remainder)
+    
+    best_trial_info_file = os.path.join(FLAGS.output_dir, "best_trial.txt")
 
-    #######################################################################################################################
-    # evaluate all checkpoints; you can use the checkpoint with the best dev accuarcy
-    steps_and_files = []
-    filenames = tf.gfile.ListDirectory(FLAGS.output_dir)
-    for filename in filenames:
+    def _best_trial_info():
+      """Returns information about which checkpoints have been evaled so far."""
+      if tf.gfile.Exists(best_trial_info_file):
+        with tf.gfile.GFile(best_trial_info_file, "r") as best_info:
+          global_step, best_metric_global_step, metric_value = (
+              best_info.read().split(":"))
+          global_step = int(global_step)
+          best_metric_global_step = int(best_metric_global_step)
+          metric_value = float(metric_value)
+      else:
+        metric_value = -1
+        best_metric_global_step = -1
+        global_step = -1
+      tf.logging.info(
+          "Best trial info: Step: %s, Best Value Step: %s, "
+          "Best Value: %s", global_step, best_metric_global_step, metric_value)
+      return global_step, best_metric_global_step, metric_value
+
+    def _remove_checkpoint(checkpoint_path):
+      for ext in ["meta", "data-00000-of-00001", "index"]:
+        src_ckpt = checkpoint_path + ".{}".format(ext)
+        tf.logging.info("removing {}".format(src_ckpt))
+        tf.gfile.Remove(src_ckpt)
+
+    def _find_valid_cands(curr_step):
+      filenames = tf.gfile.ListDirectory(FLAGS.output_dir)
+      candidates = []
+      for filename in filenames:
         if filename.endswith(".index"):
-            ckpt_name = filename[:-6]
-            cur_filename = os.path.join(FLAGS.output_dir, ckpt_name)
-            global_step = int(cur_filename.split("-")[-1])
+          ckpt_name = filename[:-6]
+          idx = ckpt_name.split("-")[-1]
+          if int(idx) > curr_step:
+            candidates.append(filename)
+      return candidates
+
+    output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
+
+    if task_name == "sts-b":
+      key_name = "pearson"
+    elif task_name == "cola":
+      key_name = "matthew_corr"
+    else:
+      key_name = "eval_accuracy"
+
+    global_step, best_perf_global_step, best_perf = _best_trial_info()
+    writer = tf.gfile.GFile(output_eval_file, "w")
+    while global_step < num_train_steps:
+      steps_and_files = {}
+      filenames = tf.gfile.ListDirectory(FLAGS.output_dir)
+      for filename in filenames:
+        if filename.endswith(".index"):
+          ckpt_name = filename[:-6]
+          cur_filename = os.path.join(FLAGS.output_dir, ckpt_name)
+          if cur_filename.split("-")[-1] == "best":
+            continue
+          gstep = int(cur_filename.split("-")[-1])
+          if gstep not in steps_and_files:
             tf.logging.info("Add {} to eval list.".format(cur_filename))
-            steps_and_files.append([global_step, cur_filename])
-    steps_and_files = sorted(steps_and_files, key=lambda x: x[0])
+            steps_and_files[gstep] = cur_filename
+      tf.logging.info("found {} files.".format(len(steps_and_files)))
+      if not steps_and_files:
+        tf.logging.info("found 0 file, global step: {}. Sleeping."
+                        .format(global_step))
+        time.sleep(60)
+      else:
+        for checkpoint in sorted(steps_and_files.items()):
+          step, checkpoint_path = checkpoint
+          if global_step >= step:
+            if (best_perf_global_step != step and
+                len(_find_valid_cands(step)) > 1):
+              _remove_checkpoint(checkpoint_path)
+            continue
+          result = estimator.evaluate(
+              input_fn=eval_input_fn,
+              steps=eval_steps,
+              checkpoint_path=checkpoint_path)
+          global_step = result["global_step"]
+          tf.logging.info("***** Eval results *****")
+          for key in sorted(result.keys()):
+            tf.logging.info("  %s = %s", key, str(result[key]))
+            writer.write("%s = %s\n" % (key, str(result[key])))
+          writer.write("best = {}\n".format(best_perf))
+          if result[key_name] > best_perf:
+            best_perf = result[key_name]
+            best_perf_global_step = global_step
+          elif len(_find_valid_cands(global_step)) > 1:
+            _remove_checkpoint(checkpoint_path)
+          writer.write("=" * 50 + "\n")
+          writer.flush()
+          with tf.gfile.GFile(best_trial_info_file, "w") as best_info:
+            best_info.write("{}:{}:{}".format(
+                global_step, best_perf_global_step, best_perf))
+    writer.close()
 
-    output_eval_file = os.path.join(FLAGS.data_dir, "eval_results_albert_zh.txt")
-    print("output_eval_file:",output_eval_file)
-    tf.logging.info("output_eval_file:"+output_eval_file)
-    with tf.gfile.GFile(output_eval_file, "w") as writer:
-        for global_step, filename in sorted(steps_and_files, key=lambda x: x[0]):
-            result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps, checkpoint_path=filename)
-
-            tf.logging.info("***** Eval results %s *****" % (filename))
-            writer.write("***** Eval results %s *****\n" % (filename))
-            for key in sorted(result.keys()):
-                tf.logging.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
-    #######################################################################################################################
-
-    #result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps)
-    #
-    #output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
-    #with tf.gfile.GFile(output_eval_file, "w") as writer:
-    #  tf.logging.info("***** Eval results *****")
-    #  for key in sorted(result.keys()):
-    #    tf.logging.info("  %s = %s", key, str(result[key]))
-    #    writer.write("%s = %s\n" % (key, str(result[key])))
+    for ext in ["meta", "data-00000-of-00001", "index"]:
+      src_ckpt = "model.ckpt-{}.{}".format(best_perf_global_step, ext)
+      tgt_ckpt = "model.ckpt-best.{}".format(ext)
+      tf.logging.info("saving {} to {}".format(src_ckpt, tgt_ckpt))
+      tf.io.gfile.rename(
+          os.path.join(FLAGS.output_dir, src_ckpt),
+          os.path.join(FLAGS.output_dir, tgt_ckpt),
+          overwrite=True)
 
   if FLAGS.do_predict:
     predict_examples = processor.get_test_examples(FLAGS.data_dir)
