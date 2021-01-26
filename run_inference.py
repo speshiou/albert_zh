@@ -38,10 +38,10 @@ def do_inference(model_path, vocab_file, data):
 
         input_details = interpreter.get_input_details()
         output_details = interpreter.get_output_details()
-
-        interpreter.set_tensor(input_details[0]['index'], [to_int32(feature.input_ids)])
-        interpreter.set_tensor(input_details[1]['index'], [to_int32(feature.input_mask)])
-        interpreter.set_tensor(input_details[3]['index'], [to_int32(feature.segment_ids)])
+        
+        interpreter.set_tensor(input_details[0]['index'], [to_int32(feature.input_ids) if input_details[0]['dtype'] == np.int32 else feature.input_ids])
+        interpreter.set_tensor(input_details[1]['index'], [to_int32(feature.input_mask) if input_details[1]['dtype'] == np.int32 else feature.input_ids])
+        interpreter.set_tensor(input_details[3]['index'], [to_int32(feature.segment_ids) if input_details[3]['dtype'] == np.int32 else feature.input_ids])
         
         interpreter.invoke()
 

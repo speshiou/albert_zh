@@ -143,27 +143,13 @@ flags.DEFINE_string(
 def _serving_input_receiver_fn():
   """Creates an input function for serving."""
   seq_len = FLAGS.max_seq_length
-  serialized_example = tf.placeholder(
-      dtype=tf.string, shape=[None], name="serialized_example")
   features = {
-      "input_ids": tf.FixedLenFeature([seq_len], dtype=tf.int64),
-      "input_mask": tf.FixedLenFeature([seq_len], dtype=tf.int64),
-      "segment_ids": tf.FixedLenFeature([seq_len], dtype=tf.int64),
+    "input_ids": tf.placeholder(tf.int64, shape=[None, seq_len], name="input_ids"),
+    "input_mask": tf.placeholder(tf.int64, shape=[None, seq_len], name="input_mask"),
+    "segment_ids": tf.placeholder(tf.int64, shape=[None, seq_len], name="segment_ids"),
+    "label_ids": tf.placeholder(tf.int32, shape=[None], name="label_ids"),
   }
-  feature_map = tf.parse_example(serialized_example, features=features)
-  feature_map["is_real_example"] = tf.constant(1, dtype=tf.int32)
-  feature_map["label_ids"] = tf.constant(0, dtype=tf.int32)
-
-  # tf.Example only supports tf.int64, but the TPU only supports tf.int32.
-  # So cast all int64 to int32.
-  for name in feature_map.keys():
-    t = feature_map[name]
-    if t.dtype == tf.int64:
-      t = tf.to_int32(t)
-    feature_map[name] = t
-
-  return tf.estimator.export.ServingInputReceiver(
-      features=feature_map, receiver_tensors=serialized_example)
+  return tf.estimator.export.build_raw_serving_input_receiver_fn(features)()
 
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
@@ -178,9 +164,11 @@ def main(_):
   tokenization.validate_case_matches_checkpoint(FLAGS.do_lower_case,
                                                 FLAGS.init_checkpoint)
 
-  if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_predict and not FLAGS.do_predict_raw:
+  if not (FLAGS.do_train or FLAGS.do_eval or FLAGS.do_predict or
+          FLAGS.do_predict_raw or FLAGS.export_dir):
     raise ValueError(
-        "At least one of `do_train`, `do_eval` or `do_predict' or `do_predict_raw` must be True.")
+        "At least one of `do_train`, `do_eval`, `do_predict`, `do_predict_raw` or `export_dir` "
+        "must be True.")
 
   task_name = FLAGS.task_name.lower()
 
@@ -499,6 +487,15 @@ def main(_):
         serving_input_receiver_fn=_serving_input_receiver_fn,
         checkpoint_path=checkpoint_path)
     tf.logging.info("Model exported to %s.", subfolder)
+
+    # convert the exported model as tflite model
+    converter = tf.lite.TFLiteConverter.from_saved_model(subfolder) # path to the SavedModel directory
+    tflite_model = converter.convert()
+
+    tflite_model_file = os.path.join(FLAGS.export_dir, "model.tflite")
+    with tf.gfile.GFile(tflite_model_file, "w") as writer:
+      writer.write(tflite_model)
+    tf.logging.info("Convert exported model to %s.", tflite_model_file)  
 
 
 if __name__ == "__main__":
