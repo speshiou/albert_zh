@@ -136,33 +136,34 @@ flags.DEFINE_integer(
     "num_tpu_cores", 8,
     "Only used if `use_tpu` is True. Total number of TPU cores to use.")
 
-def create_serving_input_receiver_fn(max_seq_length):
-  """ Builds a serving_inputer_receiver_fn
-  Arguments
-  ---------
-  max_seq_length: int
-      Specifies the sequence length
-  Returns
-  -------
-  serving_input_receiver_fn()
-  """
+flags.DEFINE_string(
+    "export_dir", None,
+    "The directory where the exported SavedModel will be stored.")
 
-  def serving_input_receiver_fn():
-      """ Creates an serving_input_receiver_fn for BERT"""
-      input_ids = tf.placeholder(tf.int32, [None, max_seq_length], name="input_ids")
-      input_mask = tf.placeholder(tf.int32, [None, max_seq_length], name="input_mask")
-      segment_ids = tf.placeholder(tf.int32, [None, max_seq_length], name="segment_ids")
-      label_ids = tf.placeholder(tf.int32, [None], name="label_ids")
-      return tf.estimator.export.build_raw_serving_input_receiver_fn(
-          {
-              "input_ids": input_ids,
-              "input_mask": input_mask,
-              "segment_ids": segment_ids,
-              "label_ids": label_ids,
-          }
-      )()
+def _serving_input_receiver_fn():
+  """Creates an input function for serving."""
+  seq_len = FLAGS.max_seq_length
+  serialized_example = tf.placeholder(
+      dtype=tf.string, shape=[None], name="serialized_example")
+  features = {
+      "input_ids": tf.FixedLenFeature([seq_len], dtype=tf.int64),
+      "input_mask": tf.FixedLenFeature([seq_len], dtype=tf.int64),
+      "segment_ids": tf.FixedLenFeature([seq_len], dtype=tf.int64),
+  }
+  feature_map = tf.parse_example(serialized_example, features=features)
+  feature_map["is_real_example"] = tf.constant(1, dtype=tf.int32)
+  feature_map["label_ids"] = tf.constant(0, dtype=tf.int32)
 
-  return serving_input_receiver_fn
+  # tf.Example only supports tf.int64, but the TPU only supports tf.int32.
+  # So cast all int64 to int32.
+  for name in feature_map.keys():
+    t = feature_map[name]
+    if t.dtype == tf.int64:
+      t = tf.to_int32(t)
+    feature_map[name] = t
+
+  return tf.estimator.export.ServingInputReceiver(
+      features=feature_map, receiver_tensors=serialized_example)
 
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
@@ -488,6 +489,17 @@ def main(_):
         writer.write(output_line)
         num_written_lines += 1
     assert num_written_lines == num_actual_predict_examples
+
+  if FLAGS.export_dir:
+    tf.gfile.MakeDirs(FLAGS.export_dir)
+    checkpoint_path = os.path.join(FLAGS.output_dir, "model.ckpt-best")
+    tf.logging.info("Starting to export model.")
+    subfolder = estimator.export_saved_model(
+        export_dir_base=FLAGS.export_dir,
+        serving_input_receiver_fn=_serving_input_receiver_fn,
+        checkpoint_path=checkpoint_path)
+    tf.logging.info("Model exported to %s.", subfolder)
+
 
 if __name__ == "__main__":
   flags.mark_flag_as_required("task_name")
