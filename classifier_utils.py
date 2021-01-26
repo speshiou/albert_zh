@@ -29,29 +29,8 @@ import json
 import csv
 import os
 import six
-
+import tokenization
 import tensorflow as tf
-
-
-def convert_to_unicode(text):
-  """Converts `text` to Unicode (if it's not already), assuming utf-8 input."""
-  if six.PY3:
-    if isinstance(text, str):
-      return text
-    elif isinstance(text, bytes):
-      return text.decode("utf-8", "ignore")
-    else:
-      raise ValueError("Unsupported string type: %s" % (type(text)))
-  elif six.PY2:
-    if isinstance(text, str):
-      return text.decode("utf-8", "ignore")
-    elif isinstance(text, unicode):
-      return text
-    else:
-      raise ValueError("Unsupported string type: %s" % (type(text)))
-  else:
-    raise ValueError("Not running on Python2 or Python 3?")
-
 
 class InputExample(object):
   """A single training/test example for simple sequence classification."""
@@ -157,9 +136,9 @@ class XnliProcessor(DataProcessor):
     examples = []
     for (i, line) in enumerate(lines):
       guid = "%s-%s" % (set_type, i)
-      text_a = convert_to_unicode(line['premise'])
-      text_b = convert_to_unicode(line['hypo'])
-      label = convert_to_unicode(line['label']) if set_type != 'test' else 'contradiction'
+      text_a = tokenization.convert_to_unicode(line['premise'])
+      text_b = tokenization.convert_to_unicode(line['hypo'])
+      label = tokenization.convert_to_unicode(line['label']) if set_type != 'test' else 'contradiction'
       examples.append(
           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
@@ -203,9 +182,9 @@ class XnliProcessor(DataProcessor):
 #             if i == 0:
 #                 continue
 #             guid = "%s-%s" % (set_type, i)
-#             text_a = convert_to_unicode(line[3])
+#             text_a = tokenization.convert_to_unicode(line[3])
 #             text_b = None
-#             label = convert_to_unicode(line[1])
+#             label = tokenization.convert_to_unicode(line[1])
 #             examples.append(
 #                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 #         return examples
@@ -243,9 +222,9 @@ class TnewsProcessor(DataProcessor):
     examples = []
     for (i, line) in enumerate(lines):
       guid = "%s-%s" % (set_type, i)
-      text_a = convert_to_unicode(line['sentence'])
+      text_a = tokenization.convert_to_unicode(line['sentence'])
       text_b = None
-      label = convert_to_unicode(line['label']) if set_type != 'test' else "100"
+      label = tokenization.convert_to_unicode(line['label']) if set_type != 'test' else "100"
       examples.append(
           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
@@ -283,9 +262,9 @@ class TnewsProcessor(DataProcessor):
 #             if i == 0:
 #                 continue
 #             guid = "%s-%s" % (set_type, i)
-#             text_a = convert_to_unicode(line[1])
+#             text_a = tokenization.convert_to_unicode(line[1])
 #             text_b = None
-#             label = convert_to_unicode(line[0])
+#             label = tokenization.convert_to_unicode(line[0])
 #             examples.append(
 #                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 #         return examples
@@ -321,9 +300,9 @@ class iFLYTEKDataProcessor(DataProcessor):
     examples = []
     for (i, line) in enumerate(lines):
       guid = "%s-%s" % (set_type, i)
-      text_a = convert_to_unicode(line['sentence'])
+      text_a = tokenization.convert_to_unicode(line['sentence'])
       text_b = None
-      label = convert_to_unicode(line['label']) if set_type != 'test' else "0"
+      label = tokenization.convert_to_unicode(line['label']) if set_type != 'test' else "0"
       examples.append(
           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
@@ -356,9 +335,9 @@ class AFQMCProcessor(DataProcessor):
     examples = []
     for (i, line) in enumerate(lines):
       guid = "%s-%s" % (set_type, i)
-      text_a = convert_to_unicode(line['sentence1'])
-      text_b = convert_to_unicode(line['sentence2'])
-      label = convert_to_unicode(line['label']) if set_type != 'test' else '0'
+      text_a = tokenization.convert_to_unicode(line['sentence1'])
+      text_b = tokenization.convert_to_unicode(line['sentence2'])
+      label = tokenization.convert_to_unicode(line['label']) if set_type != 'test' else '0'
       examples.append(
           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
@@ -392,9 +371,9 @@ class CMNLIProcessor(DataProcessor):
       line_obj = json.loads(line)
       index = index + 1
       guid = "%s-%s" % (set_type, index)
-      text_a = convert_to_unicode(line_obj["sentence1"])
-      text_b = convert_to_unicode(line_obj["sentence2"])
-      label = convert_to_unicode(line_obj["label"]) if set_type != 'test' else 'neutral'
+      text_a = tokenization.convert_to_unicode(line_obj["sentence1"])
+      text_b = tokenization.convert_to_unicode(line_obj["sentence2"])
+      label = tokenization.convert_to_unicode(line_obj["label"]) if set_type != 'test' else 'neutral'
 
       if label != "-":
         examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
@@ -429,9 +408,9 @@ class CslProcessor(DataProcessor):
     examples = []
     for (i, line) in enumerate(lines):
       guid = "%s-%s" % (set_type, i)
-      text_a = convert_to_unicode(" ".join(line['keyword']))
-      text_b = convert_to_unicode(line['abst'])
-      label = convert_to_unicode(line['label']) if set_type != 'test' else '0'
+      text_a = tokenization.convert_to_unicode(" ".join(line['keyword']))
+      text_b = tokenization.convert_to_unicode(line['abst'])
+      label = tokenization.convert_to_unicode(line['label']) if set_type != 'test' else '0'
       examples.append(
           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
@@ -467,9 +446,9 @@ class CslProcessor(DataProcessor):
 #       if i == 0:
 #         continue
 #       guid = "%s-%s" % (set_type, i)
-#       text_a = convert_to_unicode(line[2])
-#       text_b = convert_to_unicode(line[3])
-#       label = convert_to_unicode(line[0]) if set_type != "test" else '0'
+#       text_a = tokenization.convert_to_unicode(line[2])
+#       text_b = tokenization.convert_to_unicode(line[3])
+#       label = tokenization.convert_to_unicode(line[0]) if set_type != "test" else '0'
 #       examples.append(
 #           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 #     return examples
@@ -507,9 +486,9 @@ class CslProcessor(DataProcessor):
 #       if i == 0 or len(line) < 3:
 #         continue
 #       guid = "%s-%s" % (set_type, i)
-#       text_a = convert_to_unicode(line[3])
+#       text_a = tokenization.convert_to_unicode(line[3])
 #       text_b = None
-#       label = convert_to_unicode(line[0])
+#       label = tokenization.convert_to_unicode(line[0])
 #       examples.append(
 #           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 #     return examples
@@ -551,9 +530,9 @@ class CslProcessor(DataProcessor):
 #         continue
 #       guid = "%s-%s" % (set_type, i)
 #       try:
-#         label = convert_to_unicode(line[2])
-#         text_a = convert_to_unicode(line[0])
-#         text_b = convert_to_unicode(line[1])
+#         label = tokenization.convert_to_unicode(line[2])
+#         text_a = tokenization.convert_to_unicode(line[0])
+#         text_b = tokenization.convert_to_unicode(line[1])
 #         examples.append(
 #             InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 #       except Exception:
@@ -598,9 +577,9 @@ class CslProcessor(DataProcessor):
 #         continue
 #       guid = "%s-%s" % (set_type, i)
 #       try:
-#         label = convert_to_unicode(line[0])
-#         text_a = convert_to_unicode(line[1])
-#         text_b = convert_to_unicode(line[2])
+#         label = tokenization.convert_to_unicode(line[0])
+#         text_a = tokenization.convert_to_unicode(line[1])
+#         text_b = tokenization.convert_to_unicode(line[2])
 #         examples.append(
 #             InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 #       except Exception:
@@ -645,9 +624,9 @@ class CslProcessor(DataProcessor):
 #         continue
 #       guid = "%s-%s" % (set_type, i)
 #       try:
-#         label = convert_to_unicode(line[2])
-#         text_a = convert_to_unicode(line[0])
-#         text_b = convert_to_unicode(line[1])
+#         label = tokenization.convert_to_unicode(line[2])
+#         text_a = tokenization.convert_to_unicode(line[0])
+#         text_b = tokenization.convert_to_unicode(line[1])
 #         examples.append(
 #             InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 #       except Exception:
@@ -684,13 +663,13 @@ class CslProcessor(DataProcessor):
 #     for (i, line) in enumerate(lines):
 #       if i == 0:
 #         continue
-#       guid = "%s-%s" % (set_type, convert_to_unicode(line[0]))
-#       text_a = convert_to_unicode(line[8])
-#       text_b = convert_to_unicode(line[9])
+#       guid = "%s-%s" % (set_type, tokenization.convert_to_unicode(line[0]))
+#       text_a = tokenization.convert_to_unicode(line[8])
+#       text_b = tokenization.convert_to_unicode(line[9])
 #       if set_type == "test":
 #         label = "contradiction"
 #       else:
-#         label = convert_to_unicode(line[-1])
+#         label = tokenization.convert_to_unicode(line[-1])
 #       examples.append(
 #           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 #     return examples
@@ -725,12 +704,12 @@ class CslProcessor(DataProcessor):
 #       if i == 0:
 #         continue
 #       guid = "%s-%s" % (set_type, i)
-#       text_a = convert_to_unicode(line[3])
-#       text_b = convert_to_unicode(line[4])
+#       text_a = tokenization.convert_to_unicode(line[3])
+#       text_b = tokenization.convert_to_unicode(line[4])
 #       if set_type == "test":
 #         label = "0"
 #       else:
-#         label = convert_to_unicode(line[0])
+#         label = tokenization.convert_to_unicode(line[0])
 #       examples.append(
 #           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 #     return examples
@@ -767,11 +746,11 @@ class CslProcessor(DataProcessor):
 #         continue
 #       guid = "%s-%s" % (set_type, i)
 #       if set_type == "test":
-#         text_a = convert_to_unicode(line[1])
+#         text_a = tokenization.convert_to_unicode(line[1])
 #         label = "0"
 #       else:
-#         text_a = convert_to_unicode(line[3])
-#         label = convert_to_unicode(line[1])
+#         text_a = tokenization.convert_to_unicode(line[3])
+#         label = tokenization.convert_to_unicode(line[1])
 #       examples.append(
 #           InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
 #     return examples
@@ -803,7 +782,7 @@ class WSCProcessor(DataProcessor):
     examples = []
     for (i, line) in enumerate(lines):
       guid = "%s-%s" % (set_type, i)
-      text_a = convert_to_unicode(line['text'])
+      text_a = tokenization.convert_to_unicode(line['text'])
       text_a_list = list(text_a)
       target = line['target']
       query = target['span1_text']
@@ -871,12 +850,12 @@ class COPAProcessor(DataProcessor):
       guid1 = "%s-%s" % (set_type, i)
 #         try:
       if line['question'] == 'cause':
-        text_a = convert_to_unicode(line['premise'] + '原因是什么呢？' + line['choice0'])
-        text_b = convert_to_unicode(line['premise'] + '原因是什么呢？' + line['choice1'])
+        text_a = tokenization.convert_to_unicode(line['premise'] + '原因是什么呢？' + line['choice0'])
+        text_b = tokenization.convert_to_unicode(line['premise'] + '原因是什么呢？' + line['choice1'])
       else:
-        text_a = convert_to_unicode(line['premise'] + '造成了什么影响呢？' + line['choice0'])
-        text_b = convert_to_unicode(line['premise'] + '造成了什么影响呢？' + line['choice1'])
-      label = convert_to_unicode(str(1 if line['label'] == 0 else 0)) if set_type != 'test' else '0'
+        text_a = tokenization.convert_to_unicode(line['premise'] + '造成了什么影响呢？' + line['choice0'])
+        text_b = tokenization.convert_to_unicode(line['premise'] + '造成了什么影响呢？' + line['choice1'])
+      label = tokenization.convert_to_unicode(str(1 if line['label'] == 0 else 0)) if set_type != 'test' else '0'
       examples.append(
           InputExample(guid=guid1, text_a=text_a, text_b=text_b, label=label))
 #         except Exception as e:
@@ -891,12 +870,12 @@ class COPAProcessor(DataProcessor):
       guid1 = "%s-%s" % (set_type, i)
       guid2 = "%s-%s" % (set_type, i + 1)
 #         try:
-      premise = convert_to_unicode(line['premise'])
-      choice0 = convert_to_unicode(line['choice0'])
-      label = convert_to_unicode(str(1 if line['label'] == 0 else 0)) if set_type != 'test' else '0'
-      #text_a2 = convert_to_unicode(line['premise'])
-      choice1 = convert_to_unicode(line['choice1'])
-      label2 = convert_to_unicode(
+      premise = tokenization.convert_to_unicode(line['premise'])
+      choice0 = tokenization.convert_to_unicode(line['choice0'])
+      label = tokenization.convert_to_unicode(str(1 if line['label'] == 0 else 0)) if set_type != 'test' else '0'
+      #text_a2 = tokenization.convert_to_unicode(line['premise'])
+      choice1 = tokenization.convert_to_unicode(line['choice1'])
+      label2 = tokenization.convert_to_unicode(
           str(0 if line['label'] == 0 else 1)) if set_type != 'test' else '0'
       if line['question'] == 'effect':
         text_a = premise
