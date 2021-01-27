@@ -45,7 +45,11 @@ def do_inference(model_path, vocab_file, data):
         
         interpreter.invoke()
 
-        output_data = interpreter.get_tensor(output_details[1]['index'])
+        if len(output_details) > 1:
+            output_data = interpreter.get_tensor(output_details[1]['index'])
+        else:
+            # compatiable with single output models
+            output_data = interpreter.get_tensor(output_details[0]['index'])
         results.append(output_data[0])
     return results
 
