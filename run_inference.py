@@ -45,7 +45,7 @@ def do_inference(model_path, vocab_file, data):
         
         interpreter.invoke()
 
-        output_data = interpreter.get_tensor(output_details[0]['index'])
+        output_data = interpreter.get_tensor(output_details[1]['index'])
         results.append(output_data[0])
     return results
 

@@ -467,7 +467,10 @@ def main(_):
         checkpoint_path=checkpoint_path)
 
     output_predict_file = os.path.join(FLAGS.output_dir, "test_results.tsv")
-    with tf.gfile.GFile(output_predict_file, "w") as pred_writer:
+    output_submit_file = os.path.join(FLAGS.output_dir, "submit_results.tsv")
+    with tf.gfile.GFile(output_predict_file, "w") as pred_writer,\
+        tf.gfile.GFile(output_submit_file, "w") as sub_writer:
+      sub_writer.write("index" + "\t" + "prediction\n")
       num_written_lines = 0
       tf.logging.info("***** Predict results *****")
       for (i, (example, prediction)) in\
@@ -479,7 +482,12 @@ def main(_):
             str(class_probability)
             for class_probability in probabilities) + "\n"
         pred_writer.write(output_line)
-        
+
+        if task_name != "sts-b":
+          actual_label = label_list[int(prediction["predictions"])]
+        else:
+          actual_label = str(prediction["predictions"])
+        sub_writer.write(example.guid + "\t" + actual_label + "\n")
         num_written_lines += 1
     assert num_written_lines == num_actual_predict_examples
 
