@@ -461,20 +461,25 @@ def main(_):
         is_training=False,
         drop_remainder=predict_drop_remainder)
 
-    result = estimator.predict(input_fn=predict_input_fn)
+    checkpoint_path = os.path.join(FLAGS.output_dir, "model.ckpt-best")
+    result = estimator.predict(
+        input_fn=predict_input_fn,
+        checkpoint_path=checkpoint_path)
 
     output_predict_file = os.path.join(FLAGS.output_dir, "test_results.tsv")
-    with tf.gfile.GFile(output_predict_file, "w") as writer:
+    with tf.gfile.GFile(output_predict_file, "w") as pred_writer:
       num_written_lines = 0
       tf.logging.info("***** Predict results *****")
-      for (i, prediction) in enumerate(result):
+      for (i, (example, prediction)) in\
+          enumerate(zip(predict_examples, result)):        
         probabilities = prediction["probabilities"]
         if i >= num_actual_predict_examples:
           break
         output_line = "\t".join(
             str(class_probability)
             for class_probability in probabilities) + "\n"
-        writer.write(output_line)
+        pred_writer.write(output_line)
+        
         num_written_lines += 1
     assert num_written_lines == num_actual_predict_examples
 
