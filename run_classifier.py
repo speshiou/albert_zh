@@ -144,9 +144,9 @@ def _serving_input_receiver_fn():
   """Creates an input function for serving."""
   seq_len = FLAGS.max_seq_length
   features = {
-    "input_ids": tf.placeholder(tf.int64, shape=[None, seq_len], name="input_ids"),
-    "input_mask": tf.placeholder(tf.int64, shape=[None, seq_len], name="input_mask"),
-    "segment_ids": tf.placeholder(tf.int64, shape=[None, seq_len], name="segment_ids"),
+    "input_ids": tf.placeholder(tf.int32, shape=[None, seq_len], name="input_ids"),
+    "input_mask": tf.placeholder(tf.int32, shape=[None, seq_len], name="input_mask"),
+    "segment_ids": tf.placeholder(tf.int32, shape=[None, seq_len], name="segment_ids"),
     "label_ids": tf.placeholder(tf.int32, shape=[None], name="label_ids"),
   }
   return tf.estimator.export.build_raw_serving_input_receiver_fn(features)()
