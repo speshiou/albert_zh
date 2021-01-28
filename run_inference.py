@@ -26,7 +26,9 @@ def do_inference(model_path, vocab_file, data):
     tokenizer = tokenization.FullTokenizer(
       vocab_file=vocab_file, do_lower_case=True)
     interpreter = tf.lite.Interpreter(model_path=model_path)
-    results = []
+
+    predictions = []
+    probabilities = []
 
     for input in data:
         guid = "predict_1"
@@ -46,17 +48,25 @@ def do_inference(model_path, vocab_file, data):
         interpreter.invoke()
 
         if len(output_details) > 1:
+            output_data = interpreter.get_tensor(output_details[0]['index'])
+            predictions.append(output_data[0])
             output_data = interpreter.get_tensor(output_details[1]['index'])
+            probabilities.append(output_data[0])
         else:
             # compatiable with single output models
             output_data = interpreter.get_tensor(output_details[0]['index'])
-        results.append(output_data[0])
-    return results
+            probabilities.append(output_data[0])
+    return probabilities, predictions if len(probabilities) == len(predictions) else None
 
 def main(_):
-    results = do_inference(FLAGS.tflite_model, FLAGS.vocab_file, FLAGS.text)
+    probabilities, predictions = do_inference(FLAGS.tflite_model, FLAGS.vocab_file, FLAGS.text)
     
-    results = { "status": "OK", "data": results, "taken": time.time() - start_time }
+    results = { 
+        "status": "OK", 
+        "probabilities": probabilities, 
+        "predictions": predictions, 
+        "taken": time.time() - start_time 
+        }
     print(json.dumps(results, default=np_json_convertor, indent=4))
 
 if __name__ == "__main__":
