@@ -19,8 +19,8 @@ This library can be used to construct ALBERT models for fine-tuning, either from
 json config files or from TF-Hub modules.
 """
 
-from albert import modeling
-from albert import tokenization
+import modeling
+import tokenization
 import tensorflow.compat.v1 as tf
 import tensorflow_hub as hub
 
@@ -47,14 +47,21 @@ def _create_model_from_scratch(albert_config, is_training, input_ids,
                                input_mask, segment_ids, use_one_hot_embeddings,
                                use_einsum):
   """Creates an ALBERT model from scratch/config."""
-  model = modeling.AlbertModel(
+  # model = modeling.AlbertModel(
+  #     config=albert_config,
+  #     is_training=is_training,
+  #     input_ids=input_ids,
+  #     input_mask=input_mask,
+  #     token_type_ids=segment_ids,
+  #     use_one_hot_embeddings=use_one_hot_embeddings,
+  #     use_einsum=use_einsum)
+  model = modeling.BertModel(
       config=albert_config,
       is_training=is_training,
       input_ids=input_ids,
       input_mask=input_mask,
       token_type_ids=segment_ids,
-      use_one_hot_embeddings=use_one_hot_embeddings,
-      use_einsum=use_einsum)
+      use_one_hot_embeddings=use_one_hot_embeddings)
   return (model.get_pooled_output(), model.get_sequence_output())
 
 

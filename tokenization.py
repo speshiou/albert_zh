@@ -19,11 +19,31 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import re
 import unicodedata
 import six
+import re
 import tensorflow as tf
 
+SPIECE_UNDERLINE = u"▁".encode("utf-8")
+
+def preprocess_text(inputs, remove_space=True, lower=False):
+  """preprocess data by removing extra space and normalize data."""
+  outputs = inputs
+  if remove_space:
+    outputs = " ".join(inputs.strip().split())
+
+  if six.PY2 and isinstance(outputs, str):
+    try:
+      outputs = six.ensure_text(outputs, "utf-8")
+    except UnicodeDecodeError:
+      outputs = six.ensure_text(outputs, "latin-1")
+
+  outputs = unicodedata.normalize("NFKD", outputs)
+  outputs = "".join([c for c in outputs if not unicodedata.combining(c)])
+  if lower:
+    outputs = outputs.lower()
+
+  return outputs
 
 def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
   """Checks whether the casing config is consistent with the checkpoint name."""
@@ -142,6 +162,11 @@ def convert_by_vocab(vocab, items):
     output.append(vocab[item])
   return output
 
+def token_to_id(vocab, token):
+  return vocab[token]
+
+def id_to_token(inv_vocab, id):
+  return inv_vocab[id]
 
 def convert_tokens_to_ids(vocab, tokens):
   return convert_by_vocab(vocab, tokens)
@@ -176,6 +201,12 @@ class FullTokenizer(object):
         split_tokens.append(sub_token)
 
     return split_tokens
+
+  def token_to_id(self, token):
+    return token_to_id(self.vocab, token)
+
+  def id_to_token(self, id):
+    return id_to_token(self.inv_vocab, id)
 
   def convert_tokens_to_ids(self, tokens):
     return convert_by_vocab(self.vocab, tokens)

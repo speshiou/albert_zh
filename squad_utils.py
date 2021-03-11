@@ -25,10 +25,10 @@ import math
 import re
 import string
 import sys
-from albert import fine_tuning_utils
-from albert import modeling
-from albert import optimization
-from albert import tokenization
+import fine_tuning_utils
+import modeling
+import optimization
+import tokenization
 import numpy as np
 import six
 from six.moves import map
@@ -229,20 +229,18 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
       tf.logging.info("Converting {}/{} pos {} neg {}".format(
           example_index, len(examples), cnt_pos, cnt_neg))
 
-    query_tokens = tokenization.encode_ids(
-        tokenizer.sp_model,
+    query_tokens = tokenizer.tokenize(
         tokenization.preprocess_text(
-            example.question_text, lower=do_lower_case))
+            tokenization.convert_to_unicode(example.question_text), lower=do_lower_case))
+    query_tokens = tokenizer.convert_tokens_to_ids(query_tokens)
 
     if len(query_tokens) > max_query_length:
       query_tokens = query_tokens[0:max_query_length]
 
     paragraph_text = example.paragraph_text
-    para_tokens = tokenization.encode_pieces(
-        tokenizer.sp_model,
+    para_tokens = tokenizer.tokenize(
         tokenization.preprocess_text(
-            example.paragraph_text, lower=do_lower_case),
-        return_unicode=False)
+            tokenization.convert_to_unicode(example.paragraph_text), lower=do_lower_case))
 
     chartok_to_tok_index = []
     tok_start_to_chartok_index = []
@@ -361,7 +359,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
     def _piece_to_id(x):
       if six.PY2 and isinstance(x, six.text_type):
         x = six.ensure_binary(x, "utf-8")
-      return tokenizer.sp_model.PieceToId(x)
+      return tokenizer.token_to_id(x)
 
     all_doc_tokens = list(map(_piece_to_id, para_tokens))
 
@@ -393,14 +391,14 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
       cur_tok_start_to_orig_index = []
       cur_tok_end_to_orig_index = []
 
-      tokens.append(tokenizer.sp_model.PieceToId("[CLS]"))
+      tokens.append(tokenizer.token_to_id("[CLS]"))
       segment_ids.append(0)
       p_mask.append(0)
       for token in query_tokens:
         tokens.append(token)
         segment_ids.append(0)
         p_mask.append(1)
-      tokens.append(tokenizer.sp_model.PieceToId("[SEP]"))
+      tokens.append(tokenizer.token_to_id("[SEP]"))
       segment_ids.append(0)
       p_mask.append(1)
 
@@ -418,7 +416,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
         tokens.append(all_doc_tokens[split_token_index])
         segment_ids.append(1)
         p_mask.append(0)
-      tokens.append(tokenizer.sp_model.PieceToId("[SEP]"))
+      tokens.append(tokenizer.token_to_id("[SEP]"))
       segment_ids.append(1)
       p_mask.append(1)
 
@@ -479,7 +477,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
             "%d:%s" % (x, y) for (x, y) in six.iteritems(token_is_max_context)
         ]))
         tf.logging.info("input_pieces: %s" % " ".join(
-            [tokenizer.sp_model.IdToPiece(x) for x in tokens]))
+            [tokenizer.id_to_token(x) for x in tokens]))
         tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
         tf.logging.info(
             "input_mask: %s" % " ".join([str(x) for x in input_mask]))
@@ -490,9 +488,9 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
           tf.logging.info("impossible example span")
 
         if is_training and not span_is_impossible:
-          pieces = [tokenizer.sp_model.IdToPiece(token) for token in
+          pieces = [tokenizer.id_to_token(token) for token in
                     tokens[start_position: (end_position + 1)]]
-          answer_text = tokenizer.sp_model.DecodePieces(pieces)
+          answer_text = " ".join(pieces)
           tf.logging.info("start_position: %d" % (start_position))
           tf.logging.info("end_position: %d" % (end_position))
           tf.logging.info(
@@ -514,7 +512,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
           tok_start_to_orig_index=cur_tok_start_to_orig_index,
           tok_end_to_orig_index=cur_tok_end_to_orig_index,
           token_is_max_context=token_is_max_context,
-          tokens=[tokenizer.sp_model.IdToPiece(x) for x in tokens],
+          tokens=[tokenizer.id_to_token(x) for x in tokens],
           input_ids=input_ids,
           input_mask=input_mask,
           segment_ids=segment_ids,

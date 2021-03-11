@@ -25,9 +25,9 @@ import os
 import random
 import time
 
-from albert import fine_tuning_utils
-from albert import modeling
-from albert import squad_utils
+import modeling
+import tokenization
+import squad_utils
 import six
 import tensorflow.compat.v1 as tf
 
@@ -219,17 +219,14 @@ def validate_flags_or_throw(albert_config):
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
-  albert_config = modeling.AlbertConfig.from_json_file(FLAGS.albert_config_file)
+  albert_config = modeling.BertConfig.from_json_file(FLAGS.albert_config_file)
 
   validate_flags_or_throw(albert_config)
 
   tf.gfile.MakeDirs(FLAGS.output_dir)
 
-  tokenizer = fine_tuning_utils.create_vocab(
-      vocab_file=FLAGS.vocab_file,
-      do_lower_case=FLAGS.do_lower_case,
-      spm_model_file=FLAGS.spm_model_file,
-      hub_module=FLAGS.albert_hub_module_handle)
+  tokenizer = tokenization.FullTokenizer(
+      vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
   tpu_cluster_resolver = None
   if FLAGS.use_tpu and FLAGS.tpu_name:
@@ -510,7 +507,7 @@ def main(_):
 
 
 if __name__ == "__main__":
-  flags.mark_flag_as_required("spm_model_file")
+  flags.mark_flag_as_required("vocab_file")
   flags.mark_flag_as_required("albert_config_file")
   flags.mark_flag_as_required("output_dir")
   tf.app.run()
