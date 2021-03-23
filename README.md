@@ -1,5 +1,20 @@
 # albert_zh
 
+
+## Changes by [speshiou/albert_zh](https://github.com/speshiou/albert_zh)
+***************New Mar 11, 2021 ***************
+
+Added SQuAD task (`run_squad_v2.py`, merged from [google-research/albert](https://github.com/google-research/albert)), and refactored to support Chinese ALBert models.
+
+***************New Jan 20, 2021 ***************
+
+Added `run_inference.py` for testing tflite models, and merged some changes from [google-research/albert](https://github.com/google-research/albert).
+
+***************New Jan 19, 2021 ***************
+
+Forked from [brightmart/albert_zh](https://github.com/brightmart/albert_zh).
+
+## Orignal README from [brightmart/albert_zh](https://github.com/brightmart/albert_zh)
 An Implementation of <a href="https://arxiv.org/pdf/1909.11942.pdf">A Lite Bert For Self-Supervised Learning Language Representations</a> with TensorFlow
 
 ALBert is based on Bert, but with some improvements. It achieves state of the art performance on main benchmarks with 30% parameters less. 
